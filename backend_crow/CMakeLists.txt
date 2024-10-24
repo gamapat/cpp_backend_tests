@@ -1,6 +1,4 @@
-#####################################
-# Define Targets
-#####################################
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/crow)
 
 add_executable(crow_simple_test src/crow_simple.cpp)
 
