@@ -7,5 +7,5 @@ add_executable(httplib_simple_test src/httplib_simple.cpp)
 target_include_directories(httplib_simple_test PUBLIC ${CMAKE_SOURCE_DIR}/deps/cpp-httplib ${CMAKE_SOURCE_DIR}/deps/json/include)
 
 add_executable(httplib_real_world_test src/httplib_real_world.cpp)
-target_link_libraries(httplib_real_world_test PUBLIC httplib::httplib backend_common)
+target_link_libraries(httplib_real_world_test PUBLIC backend_common)
 target_include_directories(httplib_real_world_test PUBLIC ${CMAKE_SOURCE_DIR}/deps/cpp-httplib ${CMAKE_SOURCE_DIR}/deps/json/include)
