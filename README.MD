@@ -51,6 +51,17 @@ To build the project using CMake, follow these steps:
     cmake ..
     make && sudo make install
     ```
+
+6. **Install the Pistache dependency:**
+
+    To install the Pistache library, run:
+
+    ```sh
+    sudo add-apt-repository ppa:pistache+team/unstable
+    sudo apt update
+    sudo apt install libpistache-dev pkg-config
+    ```
+
 3. **Configure the project with CMake:**
     ```sh
     cmake ..

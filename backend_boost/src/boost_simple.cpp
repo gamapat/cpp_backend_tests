@@ -4,7 +4,7 @@
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/strand.hpp>
 #include <boost/config.hpp>
-#include <boost/json.hpp>
+#include <nlohmann/json.hpp>
 #include <sstream>
 #include <string>
 #include <memory>
@@ -14,7 +14,6 @@
 namespace beast = boost::beast;
 namespace http = beast::http;
 namespace net = boost::asio;
-namespace json = boost::json;
 using tcp = net::ip::tcp;
 
 // Utility functions
@@ -22,12 +21,12 @@ std::string echo_parameter(const std::string &message) {
     return message;
 }
 
-json::value request_as_json(const http::request<http::string_body>& req) {
-    json::object result;
+nlohmann::json request_as_json(const http::request<http::string_body>& req) {
+    nlohmann::json result;
     result["method"] = req.method_string();
     result["body"] = req.body();
     
-    json::object params_dict;
+    nlohmann::json params_dict;
     // Parse query parameters from target
     std::string target = req.target().to_string();
     size_t pos = target.find('?');
@@ -166,7 +165,7 @@ private:
         }
         else if (path == "/request") {
             res.set(http::field::content_type, "application/json");
-            res.body() = json::serialize(request_as_json(req_));
+            res.body() = request_as_json(req_).dump();
         }
         else if (path == "/info") {
             res.body() = request_as_html(req_);

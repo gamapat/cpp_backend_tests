@@ -1,9 +1,11 @@
-#include "oatpp/web/server/HttpConnectionHandler.hpp"
-#include "oatpp/network/tcp/server/ConnectionProvider.hpp"
-#include "oatpp/web/server/api/ApiController.hpp"
-#include "oatpp/core/macro/codegen.hpp"
-#include "oatpp/core/macro/component.hpp"
-#include "oatpp/parser/json/mapping/ObjectMapper.hpp"
+#include <oatpp/network/tcp/server/ConnectionProvider.hpp>
+#include <oatpp/web/server/HttpConnectionHandler.hpp>
+#include <oatpp/web/server/api/ApiController.hpp>
+#include <oatpp/macro/codegen.hpp>
+#include <oatpp/macro/component.hpp>
+#include <oatpp/macro/basic.hpp>
+#include <oatpp/json/ObjectMapper.hpp>
+#include <oatpp/network/Server.hpp>
 #include <set>
 #include <sstream>
 
@@ -15,11 +17,12 @@ class RequestInfoDto : public oatpp::DTO {
     
     DTO_FIELD(String, method);
     DTO_FIELD(String, body);
-    DTO_FIELD(Object<oatpp::Fields<oatpp::Any>>, params);
+    DTO_FIELD(oatpp::Fields<oatpp::String>, params);
 };
 
 #include OATPP_CODEGEN_END(DTO)
 
+#include OATPP_CODEGEN_BEGIN(ApiController)
 // Controller definition
 class MyController : public oatpp::web::server::api::ApiController {
 public:
@@ -45,18 +48,16 @@ public:
     
     ENDPOINT("GET", "/request", requestAsJson, REQUEST(std::shared_ptr<IncomingRequest>, request)) {
         auto dto = RequestInfoDto::createShared();
-        dto->method = request->getMethod();
+        dto->method = "GET";
         dto->body = request->readBodyToString();
         
         // Process query parameters
-        auto params = oatpp::Fields<oatpp::Any>::createShared();
+        dto->params = oatpp::Fields<oatpp::String>::createShared();
         auto queryParams = request->getQueryParameters();
         
-        for (const auto& param : *queryParams) {
-            params->put(param.first.toString(), oatpp::String(param.second.toString()));
+        for (const auto& param : queryParams.getAll()) {
+            dto->params[param.first.toString()] = oatpp::String(param.second.toString());
         }
-        
-        dto->params = params;
         
         return createDtoResponse(Status::CODE_200, dto);
     }
@@ -74,24 +75,25 @@ public:
              << "</style>";
         
         os << "<h1>Request info</h1>";
-        os << "<p><strong>Method:</strong> " << request->getMethod() << "</p>";
-        os << "<p><strong>Body:</strong> " << request->readBodyToString() << "</p>";
-        os << "<p><strong>Remote IP:</strong> " << request->getConnection()->getRemoteAddress() << "</p>";
+        os << "<p><strong>Method:</strong> GET</p>";
+        os << "<p><strong>Body:</strong> " << request->readBodyToString().getValue("") << "</p>";
+        auto connectionProperties = request->getConnection()->getInputStreamContext().getProperties();
+        os << "<p><strong>Remote IP:</strong> " << connectionProperties.get("peer_address")->c_str() << ":" << connectionProperties.get("peer_port")->c_str() << "</p>";
         
         os << "<p><strong>Headers:</strong></p><table>"
              << "<thead><tr><th>Key</th><th>Value</th></tr></thead><tbody>";
         
-        for (const auto& header : *request->getHeaders()) {
-            os << "<tr><td>" << header.first.toString() << "</td><td>" << header.second.toString() << "</td></tr>";
+        for (const auto& header : request->getHeaders().getAll()) {
+            os << "<tr><td>" << header.first.toString().getValue("") << "</td><td>" << header.second.toString().getValue("") << "</td></tr>";
         }
         
         os << "</tbody></table>";
-        os << "<p><strong>URL:</strong> " << request->getUrl() << "</p>";
+        os << "<p><strong>URL:</strong> /info </p>";
         os << "<p><strong>URL params:</strong></p><table>"
              << "<thead><tr><th>Key</th><th>Value</th></tr></thead><tbody>";
         
-        for (const auto& param : *request->getQueryParameters()) {
-            os << "<tr><td>" << param.first.toString() << "</td><td>" << param.second.toString() << "</td></tr>";
+        for (const auto& param : request->getQueryParameters().getAll()) {
+            os << "<tr><td>" << param.first.toString().getValue("") << "</td><td>" << param.second.toString().getValue("") << "</td></tr>";
         }
         
         os << "</tbody></table>";
@@ -101,6 +103,7 @@ public:
         return response;
     }
 };
+#include OATPP_CODEGEN_END(ApiController)
 
 class AppComponent {
 public:
@@ -118,29 +121,29 @@ public:
     }());
     
     OATPP_CREATE_COMPONENT(std::shared_ptr<oatpp::data::mapping::ObjectMapper>, apiObjectMapper)([] {
-        return oatpp::parser::json::mapping::ObjectMapper::createShared();
+        return std::make_shared<oatpp::json::ObjectMapper>();
     }());
 };
 
 int main() {
-    oatpp::base::Environment::init();
+    oatpp::Environment::init();
     
     AppComponent components;
     
     OATPP_COMPONENT(std::shared_ptr<oatpp::web::server::HttpRouter>, router);
     auto myController = MyController::createShared();
-    myController->addEndpointsToRouter(router);
+    router->addController(myController);
     
     OATPP_COMPONENT(std::shared_ptr<oatpp::network::ServerConnectionProvider>, connectionProvider);
     OATPP_COMPONENT(std::shared_ptr<oatpp::web::server::HttpConnectionHandler>, connectionHandler);
     
     oatpp::network::Server server(connectionProvider, connectionHandler);
     
-    OATPP_LOGI("MyApp", "Server running on port 18080");
+    OATPP_LOGi("MyApp", "Server running on port 18080");
     
     server.run();
     
-    oatpp::base::Environment::destroy();
+    oatpp::Environment::destroy();
     
     return 0;
 }

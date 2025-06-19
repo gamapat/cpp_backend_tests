@@ -8,7 +8,7 @@ std::string echo_parameter(const std::string &message)
     return message;
 }
 
-nlohmann::json; request_as_json(const httplib::Request &req)
+nlohmann::json request_as_json(const httplib::Request &req)
 {
     nlohmann::json x;
     x["method"] = req.method;

@@ -3,6 +3,7 @@
 #include "oatpp/web/server/HttpRouter.hpp"
 #include "oatpp/network/tcp/server/ConnectionProvider.hpp"
 #include "oatpp/network/Server.hpp"
+#include <iostream>
 
 int main() {
     common::clear_timings();
@@ -25,19 +26,26 @@ int main() {
     push_results_to_db_thread.detach();
     
     // Initialize oatpp Environment
-    oatpp::base::Environment::init();
+    oatpp::Environment::init();
     
     try {
         // Create Router for HTTP requests
         auto router = oatpp::web::server::HttpRouter::createShared();
         
         // Add /stats endpoint
-        router->route("GET", "/stats", [](const std::shared_ptr<oatpp::web::protocol::http::incoming::Request>& request) {
-            return oatpp::web::protocol::http::outgoing::ResponseFactory::createResponse(
-                oatpp::web::protocol::http::Status::CODE_200, 
+        // Define a custom handler for /stats
+        class StatsHandler : public oatpp::web::server::HttpRequestHandler {
+        public:
+            std::shared_ptr<OutgoingResponse> handle(const std::shared_ptr<IncomingRequest>& request) override {
+            return ResponseFactory::createResponse(
+                oatpp::web::protocol::http::Status::CODE_200,
                 common::get_stats()
             );
-        });
+            }
+        };
+
+        // Register the handler for the /stats endpoint
+        router->route("GET", "/stats", std::make_shared<StatsHandler>());
         
         // Create HTTP connection handler with router
         auto connectionHandler = oatpp::web::server::HttpConnectionHandler::createShared(router);
@@ -51,18 +59,18 @@ int main() {
         oatpp::network::Server server(connectionProvider, connectionHandler);
         
         // Print server info
-        OATPP_LOGI("Server", "Running on port %s...", connectionProvider->getProperty("port").getData());
+        OATPP_LOGi("Server", "Running on port %s...", connectionProvider->getProperty("port").getData());
         
         // Run server with 2 threads
         server.run(2);
     }
     catch (const std::exception& e) {
-        OATPP_LOGE("Server", "Error: %s", e.what());
+        OATPP_LOGe("Server", "Error: %s", e.what());
         std::cerr << "Error: " << e.what() << std::endl;
     }
     
     // Destroy oatpp Environment
-    oatpp::base::Environment::destroy();
+    oatpp::Environment::destroy();
 
     return 0;
 }
